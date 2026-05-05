@@ -131,7 +131,7 @@ func lzobfus(e_d, input) {
             i++;
         }
         result = round result;
-        until result == 0 {
+        until result <= 0 {
             result_letter &= chars95[floor (result % 95) + 1];
             result //= 95; 
         }
@@ -146,7 +146,7 @@ func lzobfus(e_d, input) {
             i++;
         }
         result = round result;
-        until result == 0 {
+        until result <= 0 {
             result_letter &= chars40[floor (result % 40) + 1];
             result //= 40;
         }
@@ -178,9 +178,13 @@ onflag {
     }
 
     original = "string";
-    say "today we are compressing" & original & "!", 2;
-    compressed = lzobfus("e", original);
-    say "this is the compressed version:" & compressed, 2;
-    say "this is the decompressed version:" & lzobfus("d", compressed);
+    say "today we are compressing " & original & "!", 2;
+    compressed = lzencode("e", original);
+    say "this is the half compressed version: " & compressed, 2;
+    compressed = lzobfus("e", compressed);
+    say "this is the full compressed version: " & compressed, 2;
+    decompressed = lzobfus("d", compressed); 
+    say "this is the half decompressed version: " & decompressed, 2;
+    say "this is the decompressed version: " & lzencode("d", decompressed), 2;
 }
 

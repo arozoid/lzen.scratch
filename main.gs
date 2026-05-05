@@ -1,5 +1,5 @@
 %include std/math
-costumes "assets/blank.svg" as "@ascii/@ascii/";
+costumes "assets/lzen.svg" as "@ascii/@ascii/";
 
 list chars = [];
 var charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_";
@@ -224,6 +224,11 @@ onflag {
     delete chars;
     delete chars40;
     delete chars95;
+
+    set_ghost_effect 100;
+    set_size 0;
+    goto_back;
+    hide;
 
     # populate chars (base-64 cloud alphabet)
     i = 1;

@@ -3,9 +3,9 @@ costumes "assets/lzen.svg";
 onflag {
     wait 1;
     lzen_mode = "e";
-    lzen_input = "stringystringshavestringedmystringthisystring";
+    lzen_input = "stringystringshavestringedmystringstring";
     say "LZen is a compression algorithm that mimics LZ77's sliding window technology with base40 to base94 encoding.", 4;
-    say "LZen supports lowercase a-z, 0-9, ], and = for data storage.", 3;
+    say "LZen supports lowercase a-z, 0-9, ], _, and = for data storage.", 3;
     say "Here's an example:", 3;
     say "input: " & lzen_input, 3;
     broadcast_and_wait "lzencode";

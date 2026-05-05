@@ -6,7 +6,7 @@ list mem = [];
 
 list chars40 = [];
 list chars95 = [];
-var charset40 = "abcdefghijklmnopqrstuvwxyz0123456789]=:[";  # ] and = are free for users
+var charset40 = "abcdefghijklmnopqrstuvwxyz0123456789]=_[";  # ] and = are free for users
 var charset95 = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 var _prefix = "@ascii/";
 
@@ -76,8 +76,12 @@ func lzecloud(e_d, input) {
 }
 
 # lzencode: lz77 compress/decompress using charset40 as the alphabet
-# back-references look like [dist:len[, literals are just plain chars
+# back-references look like [(formula)[, where formula = (dist-1) * MAX_LEN + (len-1) (MAX_LEN=32)
+# formula is encoded in base 39 to avoid using '[' (the 40th char) as a digit
+# '[' is excluded from the compression process entirely (ignored in input)
+# decode: dist = floor(formula / MAX_LEN) + 1, len = (formula % MAX_LEN) + 1
 func lzencode(e_d, input) {
+    local MAX_LEN = 32;
     local window_size = 256;
     delete mem;
 
@@ -87,23 +91,25 @@ func lzencode(e_d, input) {
         local i = 1;
         until i > length $input {
             if $input[i] == "[" {
-                # it's a back-ref — parse the dist and len out of [dist:len[
+                # it's a back-ref — parse the base40 formula out of [(formula)[
                 i++;
-                local dist_str = "";
-                until $input[i] == ":" {
-                    dist_str &= $input[i];
-                    i++;
-                }
-                i++;
-                local len_str = "";
-                # len ends when we hit the closing [ (same char as opener)
+                local formula_str = "";
                 until $input[i] == "[" {
-                    len_str &= $input[i];
+                    formula_str &= $input[i];
                     i++;
                 }
                 i++;
-                local dist = dist_str;
-                local len = len_str;
+                # decode formula from base 39 (avoids '[')
+                local formula_val = 0;
+                local formula_p = 1;
+                local formula_j = 1;
+                repeat length formula_str {
+                    formula_val += ((formula_str[formula_j] in chars40) - 1) * formula_p;
+                    formula_p *= 39;
+                    formula_j++;
+                }
+                local dist = floor (formula_val / MAX_LEN) + 1;
+                local len = (formula_val % MAX_LEN) + 1;
                 # copy len chars from dist positions back — mem grows as we go (overlaps work)
                 repeat len {
                     local char = mem[length mem - dist + 1];
@@ -127,39 +133,55 @@ func lzencode(e_d, input) {
     local result = "";
     local i = 1;
     until i > length $input {
-        local best_len = 0;
-        local best_dist = 0;
-        # scan newest-first so we prefer shorter distances on equal-length ties
-        local j = length mem;
-        until j < 1 {
-            if mem[j] == $input[i] {
-                local dist_j = length mem - j + 1;
-                local len = 1;
-                # (len % dist_j) wraps the index so overlapping refs work correctly
-                until (i + len > length $input) or ($input[i + len] != mem[j + (len % dist_j)]) {
-                    len++;
+        if $input[i] == "[" {
+            # exclude [ from the compression process
+            i++;
+        } else {
+            local best_len = 0;
+            local best_dist = 0;
+            # scan newest-first so we prefer shorter distances on equal-length ties
+            local j = length mem;
+            until j < 1 {
+                if mem[j] == $input[i] {
+                    local dist_j = length mem - j + 1;
+                    local len = 1;
+                    # (len % dist_j) wraps the index so overlapping refs work correctly
+                    until (i + len > length $input) or (len >= MAX_LEN) or ($input[i + len] != mem[j + (len % dist_j)]) {
+                        len++;
+                    }
+                    if len > best_len {
+                        best_len = len;
+                        best_dist = dist_j;
+                    }
                 }
-                if len > best_len {
-                    best_len = len;
-                    best_dist = dist_j;
-                }
+                j--;
             }
-            j--;
-        }
-        if best_len > 4 {
-            # worth emitting a back-ref — saves space vs raw literals
-            result &= "[" & best_dist & ":" & best_len & "[";
-            repeat best_len {
+            if best_len > 4 {
+                # worth emitting a back-ref — saves space vs raw literals
+                # encode formula = (dist-1) * MAX_LEN + (len-1) in base 39 (avoids '[')
+                local formula_val = (best_dist - 1) * MAX_LEN + (best_len - 1);
+                local formula_str = "";
+                if formula_val == 0 {
+                    formula_str = chars40[1];
+                } else {
+                    until formula_val <= 0 {
+                        formula_str &= chars40[(formula_val % 39) + 1];
+                        formula_val = floor (formula_val / 39);
+                    }
+                }
+                result &= "[" & formula_str & "[";
+                repeat best_len {
+                    add $input[i] to mem;
+                    if length mem > window_size { delete mem[1]; }
+                    i++;
+                }
+            } else {
+                # match too short — just emit the literal char
+                result &= $input[i];
                 add $input[i] to mem;
                 if length mem > window_size { delete mem[1]; }
                 i++;
             }
-        } else {
-            # match too short — just emit the literal char
-            result &= $input[i];
-            add $input[i] to mem;
-            if length mem > window_size { delete mem[1]; }
-            i++;
         }
     }
     return result;

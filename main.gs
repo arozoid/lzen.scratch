@@ -199,6 +199,26 @@ func lzobfus(e_d, input) {
     }
 }
 
+on "lzencode" {
+    if lzen_mode == "e" {
+        # LZ77 string compression
+        lzen_output = lzencode(lzen_mode, lzen_input);
+
+        # base 40 -> base 95 (-1) [obfuscation coding]
+        lzen_output = lzobfus(lzen_mode, lzen_output);
+    } else {
+        # base 95 (-1) -> base 40 [obfuscation decoding]
+        lzen_output = lzobfus(lzen_mode, lzen_input);
+
+        # LZ77 string decompression
+        lzen_output = lzencode(lzen_mode, lzen_output);
+    }
+}
+
+on "lzecloud" {
+    lzen_output = lzecloud(lzen_mode, lzen_input);
+}
+
 onflag {
     # clear all lists before rebuilding from the charset strings
     delete chars;
@@ -225,16 +245,5 @@ onflag {
         add charset95[i] to chars95;
         i++;
     }
-
-    # run a round-trip test to verify encode and decode are inverse
-    original = "stringystringstring";
-    say "today we are compressing " & original & "!", 2;
-    compressed = lzencode("e", original);
-    say "this is the half compressed version: " & compressed, 2;
-    compressed = lzobfus("e", compressed);
-    say "this is the full compressed version: " & compressed, 2;
-    decompressed = lzobfus("d", compressed); 
-    say "this is the half decompressed version: " & decompressed, 2;
-    say "this is the decompressed version: " & lzencode("d", decompressed), 2;
 }
 

@@ -1,4 +1,3 @@
-%include std/math
 costumes "assets/lzen.svg" as "@ascii/@ascii/";
 
 list chars = [];
@@ -11,34 +10,66 @@ var charset40 = "abcdefghijklmnopqrstuvwxyz0123456789]=:[";  # ] and = are free 
 var charset95 = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 var _prefix = "@ascii/";
 
-# lzecloud: converts a string to/from a cloud-safe number using base 64
+# lzecloud: converts a chars string to/from a decimal number string (base64 -> base10)
+# processes 8 chars at a time (64^8 = 2.81e14 < 2^53, safe for scratch float)
+# adds 10^14 offset to each chunk so it's always exactly 15 digits (no leading zero loss)
+# trailer is a single decimal digit (1-8), so the whole output is pure digits, no letters
 func lzecloud(e_d, input) {
     if $e_d == "e" {
-        # encode: accumulate each char as a base-64 digit
-        local result = 0;
-        local i = 1;
-        local p64 = 1;
-        repeat length $input {
-            # switch costume so we can tell upper from lowercase (list lookup is case-insensitive)
-            switch_costume _prefix & $input[i];
-            local char_idx = $input[i] in chars;
-            # charset is lowercase-first then uppercase, so uppercase needs +26
-            if (costume_number() > 33) and (costume_number() < 60) {
-                char_idx += 26;
-            }
-            # add this char's value at the right power of 64, then shift
-            result += (char_idx - 1) * p64;
-            p64 *= 64;
-            i++;
-        }
-        return round result;
-    } else {
-        # decode: extract base-64 digits one by one until nothing's left
+        # encode: convert each chunk of 8 chars into a 15-digit decimal number
         local result = "";
-        local val = $input;
-        until val == 0 {
-            result &= chars[floor (val % 64) + 1];
-            val = floor (val / 64);
+        local len = length $input;
+        local i = 1;
+        until i > len {
+            # pack up to 8 chars using costume for case-sensitive index lookup
+            local val = 0;
+            local p = 1;
+            repeat 8 {
+                if i <= len {
+                    switch_costume _prefix & $input[i];
+                    local char_idx = $input[i] in chars;
+                    # uppercase costumes land at 34-59, lowercase at 66-91
+                    if (costume_number() > 33) and (costume_number() < 60) {
+                        char_idx += 26;
+                    }
+                    val += (char_idx - 1) * p;
+                    p *= 64;
+                    i++;
+                }
+            }
+            # add 10^14 so the number is always exactly 15 digits (no leading zeros dropped)
+            result &= val + 100000000000000;
+        }
+        # trailer: single digit (1-8) for last chunk real size
+        local last_k = len % 8;
+        if last_k == 0 { last_k = 8; }
+        result &= last_k;
+        return result;
+    } else {
+        if length $input < 2 { return ""; }
+        # decode: read 1-digit trailer, then process 15-digit chunks
+        local last_k = $input[length $input];
+        local total_chunks = floor ((length $input - 1) / 15);
+        local result = "";
+        local i = 1;
+        local chunk_num = 0;
+        until chunk_num >= total_chunks {
+            # read 15 digits and strip the 10^14 offset to get the original val
+            local chunk_str = "";
+            repeat 15 {
+                chunk_str &= $input[i];
+                i++;
+            }
+            local val = chunk_str - 100000000000000;
+            chunk_num++;
+            # last chunk only emits last_k chars, all others emit 8
+            local emit_k = 8;
+            if chunk_num == total_chunks { emit_k = last_k; }
+            # unpack base-64 indices back into chars (case preserved since chars has both)
+            repeat emit_k {
+                result &= chars[floor (val % 64) + 1];
+                val = floor (val / 64);
+            }
         }
         return result;
     }

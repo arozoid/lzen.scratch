@@ -1,4 +1,4 @@
-costumes "assets/blank.svg";
+costumes "assets/lzen_bg.svg";
 
 var lzen_input = "";
 var lzen_mode = "";

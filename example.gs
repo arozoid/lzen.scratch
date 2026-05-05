@@ -16,6 +16,8 @@ onflag {
     broadcast_and_wait "lzencode";
     say "decompressed: " & lzen_output, 3;
 
+    say "The compressed version was 31 chars long, compared to the original's 40! The program yields 10-30% compression rate on average.", 5;
+
     say "You can also use LZen Cloud in order to convert base64 values into integers!", 4;
     say "LZen Cloud supports a-z, A-Z, 0-9, _, and -", 3;
     say "Here's an example of LZen Cloud:", 3;

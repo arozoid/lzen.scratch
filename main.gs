@@ -7,7 +7,7 @@ list mem = [];
 
 list chars40 = [];
 list chars95 = [];
-var charset40 = "abcdefghijklmnopqrstuvwxyz0123456789/<:>";
+var charset40 = "abcdefghijklmnopqrstuvwxyz0123456789]=:[";  # ] and = are free for users
 var charset95 = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 var _prefix = "@ascii/";
 
@@ -45,7 +45,7 @@ func lzecloud(e_d, input) {
 }
 
 # lzencode: lz77 compress/decompress using charset40 as the alphabet
-# back-references look like <dist:len>, literals are just plain chars
+# back-references look like [dist:len[, literals are just plain chars
 func lzencode(e_d, input) {
     local window_size = 256;
     delete mem;
@@ -55,8 +55,8 @@ func lzencode(e_d, input) {
         local result = "";
         local i = 1;
         until i > length $input {
-            if $input[i] == "<" {
-                # it's a back-ref — parse the dist and len out of <dist:len>
+            if $input[i] == "[" {
+                # it's a back-ref — parse the dist and len out of [dist:len[
                 i++;
                 local dist_str = "";
                 until $input[i] == ":" {
@@ -65,7 +65,8 @@ func lzencode(e_d, input) {
                 }
                 i++;
                 local len_str = "";
-                until $input[i] == ">" {
+                # len ends when we hit the closing [ (same char as opener)
+                until $input[i] == "[" {
                     len_str &= $input[i];
                     i++;
                 }
@@ -116,7 +117,7 @@ func lzencode(e_d, input) {
         }
         if best_len > 4 {
             # worth emitting a back-ref — saves space vs raw literals
-            result &= "<" & best_dist & ":" & best_len & ">";
+            result &= "[" & best_dist & ":" & best_len & "[";
             repeat best_len {
                 add $input[i] to mem;
                 if length mem > window_size { delete mem[1]; }
